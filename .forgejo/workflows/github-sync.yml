@@ -1,7 +1,7 @@
 name: GitHub Sync (HACS)
 
 # HACS liest nur GitHub. Dieser Workflow spiegelt main + Tag nach GitHub und legt dort
-# das Release samt JS-Asset an (HACS erkennt Updates über GitHub-Releases).
+# das Release an (HACS erkennt Updates der Integration über GitHub-Releases).
 #
 # Benötigtes Secret (Org- oder Repo-Secret):
 #   GH_MIRROR_TOKEN  GitHub-Token mit Schreibrechten auf ppfeiffer63/thermostat-dial-card
@@ -84,10 +84,4 @@ jobs:
             curl -sS -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
               "$API/releases" -d @/tmp/gh_payload.json > /tmp/gh_release.json
           fi
-          REL_ID=$(python3 -c 'import json;print(json.load(open("/tmp/gh_release.json"))["id"])')
-
-          # 4) JS als Release-Asset hochladen (bereits vorhanden = überspringen)
-          curl -sS -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/javascript" \
-            --data-binary @thermostat-dial-card.js \
-            "https://uploads.github.com/repos/$GH_REPO/releases/$REL_ID/assets?name=thermostat-dial-card.js" > /tmp/gh_asset.json || true
           echo "✅ GitHub-Release $TAG: https://github.com/$GH_REPO/releases/tag/$TAG"
