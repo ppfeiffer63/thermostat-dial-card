@@ -1,0 +1,171 @@
+# heizung_pwm.yaml — Zonen-PWM für einen Heizer (Package für Home Assistant)
+#
+# Ablage:  /config/packages/heizung_pwm.yaml
+# configuration.yaml:
+#   homeassistant:
+#     packages: !include_dir_named packages
+#
+# ANPASSEN (2 Stellen):
+#   sensor.wohnzimmer_temperatur  -> dein Temperatursensor
+#   switch.heizung                -> dein echter Heizer-Schalter
+# Der Präfix "heizung" in den Helper-Namen passt zu  pwm_prefix: heizung  in der Karte.
+#
+# Danach: Konfiguration prüfen, HA neu starten, Helper einmalig in der Karte
+# (Zahnrad) auf die gewünschten Werte stellen. Ohne "initial" behalten die
+# Helper ihre Werte über Neustarts hinweg.
+#
+# Ablauf: Der Regler (climate) liefert nur Soll, Ist und Modus. Er schaltet
+# nichts selbst, sondern nur einen virtuellen Schalter. Den echten Heizer
+# schaltet ausschließlich die Automation unten.
+#
+# Zonen (Abstand = Soll - Ist):
+#   Abstand > Grenze 1/2            -> Zone 1
+#   Grenze 2/3 < Abstand <= Grenze 1/2 -> Zone 2
+#   0 < Abstand <= Grenze 2/3       -> Zone 3
+#   Ist >= Soll                     -> Heizer aus
+# Leistung je Zone: 0 % = aus, 100 % = Dauer an, dazwischen PWM
+# (Einschaltdauer = Zykluszeit x Leistung).
+
+input_boolean:
+  heizung_dummy:
+    name: Heizung virtueller Schalter
+
+climate:
+  - platform: generic_thermostat
+    name: Heizung Wohnzimmer
+    heater: input_boolean.heizung_dummy
+    target_sensor: sensor.wohnzimmer_temperatur
+    min_temp: 7
+    max_temp: 30
+    target_temp_step: 0.5
+    precision: 0.1
+
+input_number:
+  heizung_grenze_1:
+    name: Heizung Grenze Zone 1/2
+    min: 0.6
+    max: 5
+    step: 0.1
+    unit_of_measurement: K
+    mode: box
+  heizung_grenze_2:
+    name: Heizung Grenze Zone 2/3
+    min: 0.1
+    max: 4.9
+    step: 0.1
+    unit_of_measurement: K
+    mode: box
+  heizung_zyklus_min:
+    name: Heizung PWM Zykluszeit
+    min: 2
+    max: 30
+    step: 1
+    unit_of_measurement: min
+    mode: box
+  heizung_z1_leistung:
+    name: Heizung Zone 1 Leistung
+    min: 0
+    max: 100
+    step: 5
+    unit_of_measurement: "%"
+    mode: box
+  heizung_z2_leistung:
+    name: Heizung Zone 2 Leistung
+    min: 0
+    max: 100
+    step: 5
+    unit_of_measurement: "%"
+    mode: box
+  heizung_z3_leistung:
+    name: Heizung Zone 3 Leistung
+    min: 0
+    max: 100
+    step: 5
+    unit_of_measurement: "%"
+    mode: box
+
+automation:
+  - id: heizung_pwm
+    alias: Heizung PWM
+    mode: restart
+    triggers:
+      - trigger: homeassistant
+        event: start
+      # Sollwert geändert
+      - trigger: state
+        entity_id: climate.heizung_wohnzimmer
+        attribute: temperature
+      # Modus heat / off gewechselt
+      - trigger: state
+        entity_id: climate.heizung_wohnzimmer
+        to:
+          - "heat"
+          - "off"
+      # Einstellungen geändert
+      - trigger: state
+        entity_id:
+          - input_number.heizung_grenze_1
+          - input_number.heizung_grenze_2
+          - input_number.heizung_zyklus_min
+          - input_number.heizung_z1_leistung
+          - input_number.heizung_z2_leistung
+          - input_number.heizung_z3_leistung
+    actions:
+      - variables:
+          climate: climate.heizung_wohnzimmer
+          heater: switch.heizung
+          # Kürzere Impulse als diese Zeit (Sekunden) werden nicht geschaltet,
+          # um das Relais zu schonen.
+          min_s: 30
+      - repeat:
+          while:
+            - condition: template
+              value_template: "{{ is_state(climate, 'heat') }}"
+          sequence:
+            - variables:
+                target: "{{ state_attr(climate, 'temperature') | float(none) }}"
+                current: "{{ state_attr(climate, 'current_temperature') | float(none) }}"
+                gap12: "{{ states('input_number.heizung_grenze_1') | float(2) }}"
+                gap23: "{{ states('input_number.heizung_grenze_2') | float(0.5) }}"
+                delta: "{{ (target - current) if target is not none and current is not none else 0 }}"
+                duty: >-
+                  {% if delta <= 0 %}0
+                  {% elif delta > gap12 %}{{ states('input_number.heizung_z1_leistung') | float(100) }}
+                  {% elif delta > gap23 %}{{ states('input_number.heizung_z2_leistung') | float(60) }}
+                  {% else %}{{ states('input_number.heizung_z3_leistung') | float(25) }}{% endif %}
+                period_s: "{{ (states('input_number.heizung_zyklus_min') | float(10) * 60) | int }}"
+                on_s: "{{ (period_s * (duty | float(0)) / 100) | round(0) | int }}"
+                off_s: "{{ period_s - on_s }}"
+            - choose:
+                # Aus: Leistung 0 %, Soll erreicht, Sensor fehlt oder Impuls zu kurz
+                - conditions: "{{ (duty | float(0)) <= 0 or on_s < min_s }}"
+                  sequence:
+                    - action: homeassistant.turn_off
+                      target:
+                        entity_id: "{{ heater }}"
+                    - delay:
+                        seconds: "{{ [60, period_s] | min }}"
+                # Dauer an: 100 % oder Pause zu kurz
+                - conditions: "{{ (duty | float(0)) >= 100 or off_s < min_s }}"
+                  sequence:
+                    - action: homeassistant.turn_on
+                      target:
+                        entity_id: "{{ heater }}"
+                    - delay:
+                        seconds: "{{ [60, period_s] | min }}"
+              # PWM: eine Phase an, eine Phase aus, danach neu bewerten
+              default:
+                - action: homeassistant.turn_on
+                  target:
+                    entity_id: "{{ heater }}"
+                - delay:
+                    seconds: "{{ on_s }}"
+                - action: homeassistant.turn_off
+                  target:
+                    entity_id: "{{ heater }}"
+                - delay:
+                    seconds: "{{ off_s }}"
+      # Regler aus (oder Schleife beendet): Heizer sicher ausschalten
+      - action: homeassistant.turn_off
+        target:
+          entity_id: "{{ heater }}"
