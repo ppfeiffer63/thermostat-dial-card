@@ -1,0 +1,155 @@
+name: HACS Release
+
+# Manuell starten: Version hochzählen, Tag setzen, Forgejo-Release mit JS-Asset erstellen.
+# Der Tag löst anschließend automatisch "GitHub Sync (HACS)" aus.
+#
+# Benötigtes Secret (Org- oder Repo-Secret):
+#   RELEASE_TOKEN  Forgejo-Token mit Schreibzugriff auf HA-Addons/thermostat-dial-card
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: "Version bump: patch, minor, or major"
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    container:
+      image: catthehacker/ubuntu:act-22.04
+
+    steps:
+      - name: Checkout code
+        run: |
+          apt-get update > /dev/null 2>&1
+          apt-get install -y git > /dev/null 2>&1
+          git clone http://192.168.11.12:3000/HA-Addons/thermostat-dial-card.git .
+
+      - name: Validate JavaScript syntax
+        run: node --check thermostat-dial-card.js
+
+      - name: Validate JSON manifests
+        run: |
+          python3 -m json.tool manifest.json > /dev/null
+          python3 -m json.tool hacs.json > /dev/null
+
+      - name: Validate HACS layout
+        run: |
+          test -f README.md || (echo "README.md missing" && exit 1)
+          FILE=$(python3 -c "import json;print(json.load(open('hacs.json'))['filename'])")
+          test -f "$FILE" || (echo "$FILE (hacs.json filename) missing" && exit 1)
+          echo "✅ All validations passed"
+
+  release:
+    needs: validate
+    runs-on: ubuntu-latest
+    container:
+      image: catthehacker/ubuntu:act-22.04
+    env:
+      REPO: HA-Addons/thermostat-dial-card
+      FORGEJO_URL: http://192.168.11.12:3000
+      RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+
+    steps:
+      - name: Check secret
+        run: |
+          test -n "$RELEASE_TOKEN" || { echo "Secret RELEASE_TOKEN fehlt"; exit 1; }
+
+      - name: Setup and Clone
+        run: |
+          apt-get update > /dev/null 2>&1
+          apt-get install -y git curl > /dev/null 2>&1
+          git clone "http://ppfeiffer:${RELEASE_TOKEN}@192.168.11.12:3000/${REPO}.git" .
+          git config user.name "CI/CD Bot"
+          git config user.email "ci@meshdresden.eu"
+
+      - name: Calculate Version
+        run: |
+          set -euo pipefail
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LATEST_TAG" ]; then
+            LATEST_TAG="v$(python3 -c "import json;print(json.load(open('manifest.json'))['version'])")"
+          fi
+          echo "Latest tag: $LATEST_TAG"
+          echo "$LATEST_TAG" > /tmp/prev_tag.txt
+
+          VERSION=${LATEST_TAG#v}
+          MAJOR=$(echo "$VERSION" | cut -d. -f1)
+          MINOR=$(echo "$VERSION" | cut -d. -f2)
+          PATCH=$(echo "$VERSION" | cut -d. -f3)
+          MAJOR=${MAJOR:-0}
+          MINOR=${MINOR:-0}
+          PATCH=${PATCH:-0}
+
+          BUMP_TYPE="${{ inputs.bump_type }}"
+          if [ "$BUMP_TYPE" = "major" ]; then
+            MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0
+          elif [ "$BUMP_TYPE" = "minor" ]; then
+            MINOR=$((MINOR + 1)); PATCH=0
+          else
+            PATCH=$((PATCH + 1))
+          fi
+
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          echo "$NEW_VERSION" > /tmp/version.txt
+          echo "v$NEW_VERSION" > /tmp/tag.txt
+          echo "Calculated version: $NEW_VERSION"
+
+      - name: Release notes
+        run: |
+          PREV=$(cat /tmp/prev_tag.txt)
+          if git rev-parse -q --verify "refs/tags/$PREV" > /dev/null; then RANGE="$PREV..HEAD"; else RANGE="HEAD"; fi
+          git log --pretty='- %s' $RANGE | grep -v 'bump version' > /tmp/notes.md || true
+          test -s /tmp/notes.md || echo "- Maintenance release" > /tmp/notes.md
+          cat /tmp/notes.md
+
+      - name: Update version files
+        run: |
+          set -euo pipefail
+          V=$(cat /tmp/version.txt)
+          sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$V\"/" manifest.json
+          sed -i "s/^const CARD_VERSION = \".*\";/const CARD_VERSION = \"$V\";/" thermostat-dial-card.js
+          node --check thermostat-dial-card.js
+          echo "✅ manifest.json und CARD_VERSION auf $V"
+
+      - name: Commit, tag and push
+        run: |
+          set -euo pipefail
+          TAG=$(cat /tmp/tag.txt)
+          git add manifest.json thermostat-dial-card.js
+          git commit -m "chore: bump version to $TAG"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin HEAD:main
+          git push origin "$TAG"
+
+      - name: Create Release on Forgejo
+        run: |
+          set -euo pipefail
+          export TAG=$(cat /tmp/tag.txt)
+          python3 - <<'PY' > /tmp/release.json
+          import json, os
+          print(json.dumps({
+              "tag_name": os.environ["TAG"],
+              "name": os.environ["TAG"],
+              "body": open("/tmp/notes.md").read(),
+              "draft": False,
+              "prerelease": False,
+          }))
+          PY
+          RESP=$(curl -sS -X POST "$FORGEJO_URL/api/v1/repos/$REPO/releases" \
+            -H "Authorization: token $RELEASE_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d @/tmp/release.json)
+          REL_ID=$(echo "$RESP" | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
+          curl -sS -X POST "$FORGEJO_URL/api/v1/repos/$REPO/releases/$REL_ID/assets?name=thermostat-dial-card.js" \
+            -H "Authorization: token $RELEASE_TOKEN" \
+            -F "attachment=@thermostat-dial-card.js" > /dev/null
+          echo "✅ Release $TAG auf Forgejo erstellt (Asset: thermostat-dial-card.js)"
+          echo "📍 https://git.pfeiffer-privat.de/$REPO/releases/tag/$TAG"
