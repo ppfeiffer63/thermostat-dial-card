@@ -1,7 +1,5 @@
 {
-  "name": "Thermostat Dial Card",
-  "content_in_root": false,
-  "filename": "thermostat-dial-card.js",
-  "homeassistant": "2024.10.0",
+  "name": "Thermostat Dial",
+  "homeassistant": "2024.11.0",
   "render_readme": true
 }
