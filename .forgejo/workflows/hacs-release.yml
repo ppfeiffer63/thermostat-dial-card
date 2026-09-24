@@ -1,6 +1,6 @@
 name: HACS Release
 
-# Manuell starten: Version hochzählen, Tag setzen, Forgejo-Release mit JS-Asset erstellen.
+# Manuell starten: Version hochzählen, Tag setzen, Forgejo-Release erstellen.
 # Der Tag löst anschließend automatisch "GitHub Sync (HACS)" aus.
 #
 # Benötigtes Secret (Org- oder Repo-Secret):
@@ -33,18 +33,23 @@ jobs:
           git clone http://192.168.11.12:3000/HA-Addons/thermostat-dial-card.git .
 
       - name: Validate JavaScript syntax
-        run: node --check thermostat-dial-card.js
+        run: node --check custom_components/thermostat_dial/www/thermostat-dial-card.js
 
-      - name: Validate JSON manifests
+      - name: Validate Python syntax
+        run: python3 -m compileall -q custom_components
+
+      - name: Validate JSON files
         run: |
-          python3 -m json.tool manifest.json > /dev/null
           python3 -m json.tool hacs.json > /dev/null
+          for f in custom_components/thermostat_dial/manifest.json custom_components/thermostat_dial/translations/*.json; do
+            python3 -m json.tool "$f" > /dev/null
+          done
 
       - name: Validate HACS layout
         run: |
           test -f README.md || (echo "README.md missing" && exit 1)
-          FILE=$(python3 -c "import json;print(json.load(open('hacs.json'))['filename'])")
-          test -f "$FILE" || (echo "$FILE (hacs.json filename) missing" && exit 1)
+          DOMAIN=$(python3 -c "import json;print(json.load(open('custom_components/thermostat_dial/manifest.json'))['domain'])")
+          test "$DOMAIN" = "thermostat_dial" || (echo "manifest domain stimmt nicht mit dem Ordner überein" && exit 1)
           echo "✅ All validations passed"
 
   release:
@@ -75,7 +80,7 @@ jobs:
           set -euo pipefail
           LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           if [ -z "$LATEST_TAG" ]; then
-            LATEST_TAG="v$(python3 -c "import json;print(json.load(open('manifest.json'))['version'])")"
+            LATEST_TAG="v$(python3 -c "import json;print(json.load(open('custom_components/thermostat_dial/manifest.json'))['version'])")"
           fi
           echo "Latest tag: $LATEST_TAG"
           echo "$LATEST_TAG" > /tmp/prev_tag.txt
@@ -114,16 +119,19 @@ jobs:
         run: |
           set -euo pipefail
           V=$(cat /tmp/version.txt)
-          sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$V\"/" manifest.json
-          sed -i "s/^const CARD_VERSION = \".*\";/const CARD_VERSION = \"$V\";/" thermostat-dial-card.js
-          node --check thermostat-dial-card.js
+          MANIFEST=custom_components/thermostat_dial/manifest.json
+          CARD=custom_components/thermostat_dial/www/thermostat-dial-card.js
+          sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$V\"/" "$MANIFEST"
+          sed -i "s/^const CARD_VERSION = \".*\";/const CARD_VERSION = \"$V\";/" "$CARD"
+          node --check "$CARD"
+          python3 -m json.tool "$MANIFEST" > /dev/null
           echo "✅ manifest.json und CARD_VERSION auf $V"
 
       - name: Commit, tag and push
         run: |
           set -euo pipefail
           TAG=$(cat /tmp/tag.txt)
-          git add manifest.json thermostat-dial-card.js
+          git add custom_components/thermostat_dial/manifest.json custom_components/thermostat_dial/www/thermostat-dial-card.js
           git commit -m "chore: bump version to $TAG"
           git tag -a "$TAG" -m "Release $TAG"
           git push origin HEAD:main
@@ -147,9 +155,6 @@ jobs:
             -H "Authorization: token $RELEASE_TOKEN" \
             -H "Content-Type: application/json" \
             -d @/tmp/release.json)
-          REL_ID=$(echo "$RESP" | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
-          curl -sS -X POST "$FORGEJO_URL/api/v1/repos/$REPO/releases/$REL_ID/assets?name=thermostat-dial-card.js" \
-            -H "Authorization: token $RELEASE_TOKEN" \
-            -F "attachment=@thermostat-dial-card.js" > /dev/null
-          echo "✅ Release $TAG auf Forgejo erstellt (Asset: thermostat-dial-card.js)"
+          echo "$RESP" | python3 -c 'import sys,json;print("Release-ID:", json.load(sys.stdin)["id"])'
+          echo "✅ Release $TAG auf Forgejo erstellt"
           echo "📍 https://git.pfeiffer-privat.de/$REPO/releases/tag/$TAG"
