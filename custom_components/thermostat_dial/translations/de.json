@@ -1,0 +1,72 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Thermostat Dial",
+        "description": "Der Regler schaltet den Heizer per Zonen-PWM. Sensor und Heizer-Schalter müssen bereits in Home Assistant vorhanden sein.",
+        "data": {
+          "name": "Name",
+          "temperature_sensor": "Temperatursensor",
+          "heater": "Heizer-Schalter",
+          "min_temp": "Minimale Solltemperatur",
+          "max_temp": "Maximale Solltemperatur",
+          "target_temp_step": "Schrittweite Solltemperatur"
+        }
+      }
+    },
+    "error": {
+      "min_max": "Die minimale Temperatur muss kleiner als die maximale sein."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Thermostat Dial Optionen",
+        "description": "Zonenfarben gelten für die Karte. Leistung, Grenzen und Zykluszeit stellst du über die Karte (Zahnrad) oder die Number-Entitäten ein.",
+        "data": {
+          "temperature_sensor": "Temperatursensor",
+          "heater": "Heizer-Schalter",
+          "min_temp": "Minimale Solltemperatur",
+          "max_temp": "Maximale Solltemperatur",
+          "target_temp_step": "Schrittweite Solltemperatur",
+          "min_pulse_s": "Kürzester Schaltimpuls",
+          "color_1": "Farbe Zone 1 (weit unter Soll)",
+          "color_2": "Farbe Zone 2",
+          "color_3": "Farbe Zone 3 (nahe am Soll)"
+        },
+        "data_description": {
+          "min_pulse_s": "Impulse unter dieser Dauer werden nicht geschaltet, um das Relais zu schonen."
+        }
+      }
+    },
+    "error": {
+      "min_max": "Die minimale Temperatur muss kleiner als die maximale sein."
+    }
+  },
+  "entity": {
+    "number": {
+      "gap12": { "name": "Grenze Zone 1/2" },
+      "gap23": { "name": "Grenze Zone 2/3" },
+      "period": { "name": "PWM-Zykluszeit" },
+      "p1": { "name": "Leistung Zone 1" },
+      "p2": { "name": "Leistung Zone 2" },
+      "p3": { "name": "Leistung Zone 3" }
+    }
+  },
+  "services": {
+    "set_setting": {
+      "name": "Einstellung setzen",
+      "description": "Setzt eine Zonen-Einstellung des Thermostats.",
+      "fields": {
+        "key": {
+          "name": "Einstellung",
+          "description": "gap12, gap23, period, p1, p2 oder p3."
+        },
+        "value": {
+          "name": "Wert",
+          "description": "Neuer Wert (Kelvin, Minuten oder Prozent)."
+        }
+      }
+    }
+  }
+}
