@@ -1,0 +1,11 @@
+{
+  "name": "Thermostat Dial Card",
+  "description": "Heizer-Thermostat mit LED-Bogen, 3 PWM-Zonen und wählbaren Zonenfarben",
+  "filename": "thermostat-dial-card.js",
+  "documentation": "https://git.pfeiffer-privat.de/HA-Addons/thermostat-dial-card",
+  "issues": "https://git.pfeiffer-privat.de/HA-Addons/thermostat-dial-card/issues",
+  "codeowners": [
+    "@ppfeiffer63"
+  ],
+  "version": "2.0.0"
+}
