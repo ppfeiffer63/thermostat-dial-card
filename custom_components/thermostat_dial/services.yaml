@@ -1,0 +1,26 @@
+set_setting:
+  target:
+    entity:
+      integration: thermostat_dial
+      domain: climate
+  fields:
+    key:
+      required: true
+      example: p2
+      selector:
+        select:
+          options:
+            - gap12
+            - gap23
+            - period
+            - p1
+            - p2
+            - p3
+    value:
+      required: true
+      example: 60
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 0.1
