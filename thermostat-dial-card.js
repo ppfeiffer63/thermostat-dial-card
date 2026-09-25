@@ -3,13 +3,13 @@
  * Vanilla JS, keine Abhängigkeiten, keine Zonen/PWM — das übernimmt die
  * Entität selbst (z. B. ein "Generic Thermostat"-Helper).
  */
-const CARD_VERSION = "4.0.1";
+const CARD_VERSION = "4.1.0";
 
 const START = 135;  // Winkel am Bogenanfang (unten links)
 const SWEEP = 270;  // Bogenlänge in Grad
-const R = 78;
+const R = 86;
 const CX = 100;
-const CY = 96;
+const CY = 100;
 
 const MODE_ICONS = {
   off: "mdi:power",
@@ -134,7 +134,7 @@ class ThermostatDialCard extends HTMLElement {
         ha-card {
           --tx: var(--primary-text-color); --tx2: var(--secondary-text-color);
           --btn: var(--secondary-background-color, #eee); --off: var(--divider-color, #ddd);
-          padding: 20px 20px 18px; text-align: center; overflow: hidden;
+          position: relative; padding: 18px; text-align: center; overflow: hidden;
         }
         ha-card.dark {
           --tx: #f4f4f5; --tx2: #8b909a; --btn: #262a30; --off: #2a2e35;
@@ -150,20 +150,23 @@ class ThermostatDialCard extends HTMLElement {
         .cur { fill: var(--tx); opacity: .9; }
         .tgt { fill: var(--tx); }
         .name { font-size: 11.5px; font-weight: 500; letter-spacing: .04em; fill: var(--tx2); text-anchor: middle; text-transform: uppercase; }
-        .target { font-size: 40px; font-weight: 300; fill: var(--tx); text-anchor: middle; letter-spacing: -0.01em; }
+        .target { font-size: 42px; font-weight: 300; fill: var(--tx); text-anchor: middle; letter-spacing: -0.01em; }
         .unit { font-size: 15px; font-weight: 400; fill: var(--tx2); }
         .sub { font-size: 11.5px; fill: var(--tx2); text-anchor: middle; }
-        .dot-sep { fill: var(--tx2); opacity: .5; }
         .btn { cursor: pointer; }
         .btn circle { fill: var(--btn); stroke: var(--off); stroke-width: 1; }
         .btn:active circle { fill: var(--off); }
         .btn text { font-size: 19px; fill: var(--tx); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
         .disabled { opacity: .35; pointer-events: none; }
-        .modes { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+        .modes {
+          position: absolute; bottom: 16px; display: flex; flex-direction: column; gap: 8px;
+        }
+        .modes.left { left: 16px; }
+        .modes.right { right: 16px; }
         .modes button {
           display: flex; align-items: center; justify-content: center;
-          width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--off); cursor: pointer;
-          background: var(--btn); color: var(--tx2); --mdc-icon-size: 19px;
+          width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--off); cursor: pointer;
+          background: var(--btn); color: var(--tx2); --mdc-icon-size: 18px;
           transition: background .15s ease, color .15s ease, border-color .15s ease;
         }
         .modes button:hover { border-color: var(--mode-color, var(--off)); color: var(--tx); }
@@ -171,22 +174,23 @@ class ThermostatDialCard extends HTMLElement {
         .err { padding: 16px; color: var(--error-color, #db4437); font-size: 13px; }
       </style>
       <ha-card>
+        <div class="modes left"></div>
+        <div class="modes right"></div>
         <div class="body">
-          <svg viewBox="0 0 200 172">
+          <svg viewBox="0 0 200 190">
             <defs><filter id="glow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="3.4"/></filter></defs>
             <g class="glow" filter="url(#glow)"></g>
             <g class="leds"></g>
             <g class="hl"></g>
             <path class="hit" d="${arcPath(START, SWEEP)}"></path>
-            <circle class="cur" r="2.6" style="display:none"></circle>
+            <circle class="cur" r="2.8" style="display:none"></circle>
             <polygon class="tgt" style="display:none"></polygon>
-            <text class="name" x="100" y="62"></text>
-            <text class="target" x="100" y="104"></text>
-            <text class="sub" x="100" y="124"></text>
-            <g class="btn minus" transform="translate(72 150)"><circle r="13"></circle><text>−</text></g>
-            <g class="btn plus" transform="translate(128 150)"><circle r="13"></circle><text>+</text></g>
+            <text class="name" x="100" y="64"></text>
+            <text class="target" x="100" y="108"></text>
+            <text class="sub" x="100" y="129"></text>
+            <g class="btn minus" transform="translate(70 165)"><circle r="13"></circle><text>−</text></g>
+            <g class="btn plus" transform="translate(130 165)"><circle r="13"></circle><text>+</text></g>
           </svg>
-          <div class="modes"></div>
         </div>
         <div class="err" style="display:none"></div>
       </ha-card>`;
@@ -206,7 +210,8 @@ class ThermostatDialCard extends HTMLElement {
       sub: $(".sub"),
       minus: $(".minus"),
       plus: $(".plus"),
-      modes: $(".modes"),
+      modesLeft: $(".modes.left"),
+      modesRight: $(".modes.right"),
       body: $(".body"),
       err: $(".err"),
     };
@@ -230,14 +235,16 @@ class ThermostatDialCard extends HTMLElement {
     this._el.svg.addEventListener("pointerup", end);
     this._el.svg.addEventListener("pointercancel", end);
 
-    this._el.modes.addEventListener("click", (e) => {
+    const onModeClick = (e) => {
       const btn = e.target.closest("button[data-mode]");
       if (!btn) return;
       this._hass.callService("climate", "set_hvac_mode", {
         entity_id: this._config.entity,
         hvac_mode: btn.dataset.mode,
       });
-    });
+    };
+    this._el.modesLeft.addEventListener("click", onModeClick);
+    this._el.modesRight.addEventListener("click", onModeClick);
 
     this._built = true;
   }
@@ -391,7 +398,7 @@ class ThermostatDialCard extends HTMLElement {
     // Texte
     el.name.textContent = this._config.name || a.friendly_name || "";
     el.target.innerHTML = active_ok
-      ? `${this._fmt(target, step)}<tspan class="unit" dx="3" dy="-16">${unit}</tspan>`
+      ? `${this._fmt(target, step)}<tspan class="unit" dx="3" dy="-17">${unit}</tspan>`
       : unavailable
       ? "–"
       : "Aus";
@@ -406,21 +413,29 @@ class ThermostatDialCard extends HTMLElement {
     el.minus.classList.toggle("disabled", disabled);
     el.plus.classList.toggle("disabled", disabled);
 
-    // Modus-Buttons
+    // Modus-Buttons: in den unteren Ecken, je zur Hälfte links/rechts gestapelt
     const modes = (a.hvac_modes || []).filter((m) => m in MODE_ICONS);
     const showModes = this._config.show_modes !== false && modes.length > 1;
-    el.modes.style.display = showModes ? "" : "none";
+    el.modesLeft.style.display = showModes ? "" : "none";
+    el.modesRight.style.display = showModes ? "" : "none";
     if (showModes) {
-      el.modes.style.setProperty("--mode-color", color);
-      const html = modes
-        .map(
-          (m) =>
-            `<button data-mode="${m}" class="${m === st.state ? "active" : ""}" title="${MODE_LABELS[m] || m}" aria-label="${MODE_LABELS[m] || m}">
+      const split = Math.ceil(modes.length / 2);
+      const left = modes.slice(0, split);
+      const right = modes.slice(split);
+      const render = (list) =>
+        list
+          .map((m) => {
+            const active = m === st.state;
+            const mc = active ? `style="--mode-color:${color}"` : "";
+            return `<button data-mode="${m}" class="${active ? "active" : ""}" ${mc} title="${MODE_LABELS[m] || m}" aria-label="${MODE_LABELS[m] || m}">
                <ha-icon icon="${MODE_ICONS[m] || "mdi:thermostat"}"></ha-icon>
-             </button>`
-        )
-        .join("");
-      if (el.modes.innerHTML !== html) el.modes.innerHTML = html;
+             </button>`;
+          })
+          .join("");
+      const leftHtml = render(left);
+      const rightHtml = render(right);
+      if (el.modesLeft.innerHTML !== leftHtml) el.modesLeft.innerHTML = leftHtml;
+      if (el.modesRight.innerHTML !== rightHtml) el.modesRight.innerHTML = rightHtml;
     }
   }
 }
