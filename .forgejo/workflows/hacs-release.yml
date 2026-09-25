@@ -30,7 +30,7 @@ jobs:
         run: |
           apt-get update > /dev/null 2>&1
           apt-get install -y git > /dev/null 2>&1
-          git clone http://192.168.11.12:3000/HA-Addons/thermostat-dial-card.git .
+          git clone http://192.168.11.16:3000/HA-Addons/thermostat-dial-card.git .
 
       - name: Validate JavaScript syntax
         run: node --check custom_components/thermostat_dial/www/thermostat-dial-card.js
@@ -59,7 +59,7 @@ jobs:
       image: catthehacker/ubuntu:act-22.04
     env:
       REPO: HA-Addons/thermostat-dial-card
-      FORGEJO_URL: http://192.168.11.12:3000
+      FORGEJO_URL: http://192.168.11.16:3000
       RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
 
     steps:
@@ -71,7 +71,7 @@ jobs:
         run: |
           apt-get update > /dev/null 2>&1
           apt-get install -y git curl > /dev/null 2>&1
-          git clone "http://ppfeiffer:${RELEASE_TOKEN}@192.168.11.12:3000/${REPO}.git" .
+          git clone "http://ppfeiffer:${RELEASE_TOKEN}@192.168.11.16:3000/${REPO}.git" .
           git config user.name "CI/CD Bot"
           git config user.email "ci@meshdresden.eu"
 
