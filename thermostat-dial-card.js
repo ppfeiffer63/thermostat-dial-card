@@ -3,13 +3,13 @@
  * Vanilla JS, keine Abhängigkeiten, keine Zonen/PWM — das übernimmt die
  * Entität selbst (z. B. ein "Generic Thermostat"-Helper).
  */
-const CARD_VERSION = "4.0.0";
+const CARD_VERSION = "4.0.1";
 
 const START = 135;  // Winkel am Bogenanfang (unten links)
 const SWEEP = 270;  // Bogenlänge in Grad
-const R = 80;
+const R = 78;
 const CX = 100;
-const CY = 100;
+const CY = 96;
 
 const MODE_ICONS = {
   off: "mdi:power",
@@ -134,50 +134,57 @@ class ThermostatDialCard extends HTMLElement {
         ha-card {
           --tx: var(--primary-text-color); --tx2: var(--secondary-text-color);
           --btn: var(--secondary-background-color, #eee); --off: var(--divider-color, #ddd);
-          padding: 12px 12px 16px; text-align: center;
+          padding: 20px 20px 18px; text-align: center; overflow: hidden;
         }
-        ha-card.dark { --tx: #f0f0f0; --tx2: #9aa0a8; --btn: #2b2f35; --off: #31353b; background: #1b1d21; color: #f0f0f0; }
-        svg { width: 100%; max-width: 320px; touch-action: none; user-select: none; -webkit-user-select: none; }
-        .led { fill: none; stroke-width: 12; stroke-linecap: butt; }
+        ha-card.dark {
+          --tx: #f4f4f5; --tx2: #8b909a; --btn: #262a30; --off: #2a2e35;
+          background: #16181c; color: #f4f4f5;
+        }
+        svg { display: block; width: 100%; max-width: 300px; margin: 0 auto; touch-action: none; user-select: none; -webkit-user-select: none; overflow: visible; }
+        .led { fill: none; stroke-width: 11; stroke-linecap: round; }
         .led.off { stroke: var(--off); }
-        .glow path { fill: none; stroke-width: 18; opacity: .6; }
-        .hl path { fill: none; stroke: #fff; stroke-width: 2; opacity: .35; }
-        .hit { fill: none; stroke: transparent; stroke-width: 36; cursor: pointer; }
-        .cur { fill: var(--tx); }
+        .glow path { fill: none; stroke-width: 20; stroke-linecap: round; opacity: .35; }
+        .hl path { fill: none; stroke: rgba(255,255,255,.5); stroke-width: 1.6; stroke-linecap: round; }
+        .hit { fill: none; stroke: transparent; stroke-width: 40; cursor: grab; }
+        .hit.disabled { cursor: default; }
+        .cur { fill: var(--tx); opacity: .9; }
         .tgt { fill: var(--tx); }
-        .title { font-size: 12px; fill: var(--tx2); text-anchor: middle; }
-        .target { font-size: 38px; font-weight: 300; fill: var(--tx); text-anchor: middle; }
-        .unit { font-size: 14px; fill: var(--tx2); }
-        .sub { font-size: 11px; fill: var(--tx2); text-anchor: middle; }
+        .name { font-size: 11.5px; font-weight: 500; letter-spacing: .04em; fill: var(--tx2); text-anchor: middle; text-transform: uppercase; }
+        .target { font-size: 40px; font-weight: 300; fill: var(--tx); text-anchor: middle; letter-spacing: -0.01em; }
+        .unit { font-size: 15px; font-weight: 400; fill: var(--tx2); }
+        .sub { font-size: 11.5px; fill: var(--tx2); text-anchor: middle; }
+        .dot-sep { fill: var(--tx2); opacity: .5; }
         .btn { cursor: pointer; }
-        .btn circle { fill: var(--btn); }
-        .btn text { font-size: 18px; fill: var(--tx); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
-        .disabled { opacity: .4; pointer-events: none; }
-        .modes { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+        .btn circle { fill: var(--btn); stroke: var(--off); stroke-width: 1; }
+        .btn:active circle { fill: var(--off); }
+        .btn text { font-size: 19px; fill: var(--tx); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+        .disabled { opacity: .35; pointer-events: none; }
+        .modes { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
         .modes button {
           display: flex; align-items: center; justify-content: center;
-          width: 40px; height: 40px; border-radius: 50%; border: none; cursor: pointer;
-          background: var(--btn); color: var(--tx); --mdc-icon-size: 22px;
+          width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--off); cursor: pointer;
+          background: var(--btn); color: var(--tx2); --mdc-icon-size: 19px;
+          transition: background .15s ease, color .15s ease, border-color .15s ease;
         }
-        .modes button.active { background: var(--mode-color); color: #fff; }
-        .err { padding: 16px; color: var(--error-color, #db4437); }
+        .modes button:hover { border-color: var(--mode-color, var(--off)); color: var(--tx); }
+        .modes button.active { background: var(--mode-color); color: #fff; border-color: var(--mode-color); }
+        .err { padding: 16px; color: var(--error-color, #db4437); font-size: 13px; }
       </style>
       <ha-card>
         <div class="body">
-          <svg viewBox="0 0 200 175">
-            <defs><filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3"/></filter></defs>
+          <svg viewBox="0 0 200 172">
+            <defs><filter id="glow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="3.4"/></filter></defs>
             <g class="glow" filter="url(#glow)"></g>
             <g class="leds"></g>
             <g class="hl"></g>
             <path class="hit" d="${arcPath(START, SWEEP)}"></path>
-            <circle class="cur" r="3" style="display:none"></circle>
+            <circle class="cur" r="2.6" style="display:none"></circle>
             <polygon class="tgt" style="display:none"></polygon>
-            <text class="title" x="100" y="70"></text>
-            <text class="target" x="100" y="108"></text>
-            <text class="sub l1" x="100" y="124"></text>
-            <text class="sub l2" x="100" y="137"></text>
-            <g class="btn minus" transform="translate(76 156)"><circle r="12"></circle><text>−</text></g>
-            <g class="btn plus" transform="translate(124 156)"><circle r="12"></circle><text>+</text></g>
+            <text class="name" x="100" y="62"></text>
+            <text class="target" x="100" y="104"></text>
+            <text class="sub" x="100" y="124"></text>
+            <g class="btn minus" transform="translate(72 150)"><circle r="13"></circle><text>−</text></g>
+            <g class="btn plus" transform="translate(128 150)"><circle r="13"></circle><text>+</text></g>
           </svg>
           <div class="modes"></div>
         </div>
@@ -194,10 +201,9 @@ class ThermostatDialCard extends HTMLElement {
       hit: $(".hit"),
       cur: $(".cur"),
       tgt: $(".tgt"),
-      title: $(".title"),
+      name: $(".name"),
       target: $(".target"),
-      l1: $(".l1"),
-      l2: $(".l2"),
+      sub: $(".sub"),
       minus: $(".minus"),
       plus: $(".plus"),
       modes: $(".modes"),
@@ -297,13 +303,13 @@ class ThermostatDialCard extends HTMLElement {
   }
 
   _color(st) {
-    if (this._config.color) return toCss(this._config.color, "#ff8100");
+    if (this._config.color) return toCss(this._config.color, "#ff9012");
     const action = st.attributes.hvac_action;
-    if (action === "heating") return "#ff8100";
-    if (action === "cooling") return "#2b9af9";
-    if (action === "drying") return "#efbd07";
-    if (st.state === "off" || st.state === "unavailable") return "#8a8a8a";
-    return "#8ac9a0";
+    if (action === "heating") return "#ff9012";
+    if (action === "cooling") return "#3ea6f6";
+    if (action === "drying") return "#f0c020";
+    if (st.state === "off" || st.state === "unavailable") return "#7c828d";
+    return "#4fc98a";
   }
 
   // ---------- Darstellung ----------
@@ -337,7 +343,7 @@ class ThermostatDialCard extends HTMLElement {
     // LED-Segmente
     const N = this._config.segments;
     const stepDeg = SWEEP / N;
-    const gapDeg = Math.min(2, stepDeg * 0.3);
+    const gapDeg = Math.min(2.2, stepDeg * 0.32);
     const swDeg = stepDeg - gapDeg;
     const tf = active_ok ? frac(target) : 0;
     let glow = "";
@@ -352,9 +358,9 @@ class ThermostatDialCard extends HTMLElement {
         if (cur != null && temp <= cur) {
           glow += `<path d="${d}" stroke="${color}"/>`;
           leds += `<path class="led" d="${d}" stroke="${color}"/>`;
-          hl += `<path d="${arcPath(a0, swDeg, R - 3)}"/>`;
+          hl += `<path d="${arcPath(a0, swDeg, R - 3.5)}"/>`;
         } else {
-          leds += `<path class="led" d="${d}" stroke="${color}" opacity=".3"/>`;
+          leds += `<path class="led" d="${d}" stroke="${color}" opacity=".32"/>`;
         }
       } else {
         leds += `<path class="led off" d="${d}"/>`;
@@ -366,7 +372,7 @@ class ThermostatDialCard extends HTMLElement {
 
     // Marker
     if (cur != null && cur >= min && cur <= max) {
-      const [cx, cy] = polar(START + SWEEP * frac(cur), R - 13);
+      const [cx, cy] = polar(START + SWEEP * frac(cur), R - 12);
       el.cur.setAttribute("cx", cx.toFixed(2));
       el.cur.setAttribute("cy", cy.toFixed(2));
       el.cur.style.display = "";
@@ -375,7 +381,7 @@ class ThermostatDialCard extends HTMLElement {
     }
     if (active_ok) {
       const ta = START + SWEEP * frac(target);
-      const pts = [polar(ta, R + 9), polar(ta - 3.2, R + 17), polar(ta + 3.2, R + 17)];
+      const pts = [polar(ta, R + 8), polar(ta - 3, R + 15), polar(ta + 3, R + 15)];
       el.tgt.setAttribute("points", pts.map((p) => `${p[0].toFixed(2)},${p[1].toFixed(2)}`).join(" "));
       el.tgt.style.display = "";
     } else {
@@ -383,14 +389,16 @@ class ThermostatDialCard extends HTMLElement {
     }
 
     // Texte
-    el.title.textContent = this._config.name || a.friendly_name || "";
+    el.name.textContent = this._config.name || a.friendly_name || "";
     el.target.innerHTML = active_ok
-      ? `${this._fmt(target, step)}<tspan class="unit" dx="2" dy="-14">${unit}</tspan>`
+      ? `${this._fmt(target, step)}<tspan class="unit" dx="3" dy="-16">${unit}</tspan>`
       : unavailable
       ? "–"
       : "Aus";
-    el.l1.textContent = cur != null ? `Ist ${this._fmt(cur, step)} ${unit}` : "";
-    el.l2.textContent = active_ok ? ACTION_LABELS[a.hvac_action] || MODE_LABELS[st.state] || st.state : "";
+    const parts = [];
+    if (cur != null) parts.push(`${this._fmt(cur, step)} ${unit} ist`);
+    if (active_ok) parts.push(ACTION_LABELS[a.hvac_action] || MODE_LABELS[st.state] || st.state);
+    el.sub.textContent = parts.join("  ·  ");
 
     // Bedienbarkeit
     const disabled = !active_ok;
@@ -407,7 +415,7 @@ class ThermostatDialCard extends HTMLElement {
       const html = modes
         .map(
           (m) =>
-            `<button data-mode="${m}" class="${m === st.state ? "active" : ""}" title="${MODE_LABELS[m] || m}">
+            `<button data-mode="${m}" class="${m === st.state ? "active" : ""}" title="${MODE_LABELS[m] || m}" aria-label="${MODE_LABELS[m] || m}">
                <ha-icon icon="${MODE_ICONS[m] || "mdi:thermostat"}"></ha-icon>
              </button>`
         )
@@ -427,4 +435,4 @@ window.customCards.push({
   preview: true,
 });
 
-console.info(`%c THERMOSTAT-DIAL-CARD %c v${CARD_VERSION} `, "color:#fff;background:#ff8100;font-weight:700", "color:#ff8100");
+console.info(`%c THERMOSTAT-DIAL-CARD %c v${CARD_VERSION} `, "color:#fff;background:#ff9012;font-weight:700", "color:#ff9012");
