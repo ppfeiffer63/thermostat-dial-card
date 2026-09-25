@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.0.0
+
+- Rückbau von der HACS-Integration auf eine einfache Dashboard-Card ohne Zonen/PWM
+- Karte bindet an eine beliebige `climate`-Entität, keine eigene Regelung mehr
+- Bogenfarbe automatisch nach `hvac_action` oder fest wählbar (`color`)
+- README: Hinweis zum Einrichten einer climate-Entität über den Generic-Thermostat-Helper
+
 ## 3.0.0
 
 - Umbau von "Card + separates YAML-Package" auf eine echte HACS-Integration (`custom_components/thermostat_dial`)
