@@ -1,11 +1,11 @@
 {
   "name": "Thermostat Dial Card",
-  "description": "LED-Bogen-Thermostat-Karte im SteelSeries-Stil für eine beliebige climate-Entität",
+  "description": "LED-Bogen-Thermostat-Karte im SteelSeries-Stil für eine oder zwei climate-Entitäten",
   "filename": "thermostat-dial-card.js",
   "documentation": "https://git.pfeiffer-privat.de/HA-Addons/thermostat-dial-card",
   "issues": "https://git.pfeiffer-privat.de/HA-Addons/thermostat-dial-card/issues",
   "codeowners": [
     "@ppfeiffer63"
   ],
-  "version": "4.1.0"
+  "version": "4.2.0"
 }
