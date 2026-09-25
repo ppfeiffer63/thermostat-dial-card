@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.1.0
+
+- Modus-Buttons in die unteren Ecken der Karte verschoben (nicht mehr als eigene Zeile darunter)
+- Bogenradius vergrößert (78 → 86), der gewonnene Platz kommt dem LED-Bogen zugute
+- Bei mehr als zwei Modi werden die Buttons automatisch zur Hälfte links/rechts gestapelt
+
 ## 4.0.1
 
 - Optik überarbeitet: runde LED-Kappen statt abgeschnittener Enden, stärkerer Glow
