@@ -4,7 +4,7 @@
  * Zonen, Leistung und Farben kommen aus den Attributen der climate-Entität,
  * Änderungen gehen über den Service thermostat_dial.set_setting.
  */
-const CARD_VERSION = "3.0.0";
+const CARD_VERSION = "2.0.1";
 
 const START = 135;  // Winkel am Bogenanfang (unten links)
 const SWEEP = 270;  // Bogenlänge in Grad
