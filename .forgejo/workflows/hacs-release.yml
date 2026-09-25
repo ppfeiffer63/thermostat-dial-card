@@ -36,7 +36,17 @@ jobs:
         run: node --check custom_components/thermostat_dial/www/thermostat-dial-card.js
 
       - name: Validate Python syntax
-        run: python3 -m compileall -q custom_components
+        run: |
+          # Das Runner-Image liefert nur Python 3.10 als "python3" mit.
+          # __init__.py nutzt PEP-695-Syntax ("type X = ..."), die erst ab
+          # Python 3.12 gültig ist - dafür brauchen wir hier explizit 3.12.
+          if ! command -v python3.12 > /dev/null 2>&1; then
+            apt-get install -y software-properties-common > /dev/null 2>&1
+            add-apt-repository -y ppa:deadsnakes/ppa > /dev/null 2>&1
+            apt-get update > /dev/null 2>&1
+            apt-get install -y python3.12 > /dev/null 2>&1
+          fi
+          python3.12 -m compileall -q custom_components
 
       - name: Validate JSON files
         run: |
