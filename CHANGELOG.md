@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.2.0
+
+- Zweite climate-Entität (`entity2`) verwaltbar: konzentrischer Doppel-Bogen (außen `entity`, innen `entity2`), jeweils eigener Soll-/Ist-Wert
+- Tap auf einen Ring oder seinen Namen aktiviert ihn — nur der aktive Ring reagiert auf +/-, der inaktive wird gedimmt dargestellt; ein gepunkteter Auswahlring markiert die aktive Entität
+- Ziehen direkt am jeweiligen Bogen steuert immer diesen, unabhängig vom aktiven Ring
+- Modus-Buttons wirken im Doppel-Modus auf beide Entitäten gleichzeitig und zeigen einen "gemischt"-Zustand (halb gefüllt), wenn beide unterschiedliche Modi haben
+- Neu: Farbverlauf über `color_stops` (bzw. `color_stops2`) — Liste aus `{temp, color}`, zwischen den Stützpunkten wird linear interpoliert, statt einer festen Bogenfarbe
+- Neue optionale Optionen: `entity2`, `name2`, `color2`, `step2`, `color_stops`, `color_stops2`
+- Ohne `entity2` verhält sich die Karte unverändert wie v4.1.0 (ein Bogen, volle Größe)
+
 ## 4.1.0
 
 - Modus-Buttons in die unteren Ecken der Karte verschoben (nicht mehr als eigene Zeile darunter)
