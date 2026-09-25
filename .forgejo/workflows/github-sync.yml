@@ -27,7 +27,7 @@ jobs:
     env:
       GH_REPO: ppfeiffer63/thermostat-dial-card
       FORGEJO_REPO: HA-Addons/thermostat-dial-card
-      FORGEJO_URL: http://192.168.11.12:3000
+      FORGEJO_URL: http://192.168.11.16:3000
       GH_TOKEN: ${{ secrets.GH_MIRROR_TOKEN }}
       INPUT_TAG: ${{ inputs.tag }}
 
