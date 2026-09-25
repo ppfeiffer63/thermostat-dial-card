@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.0.1
+
+- Optik überarbeitet: runde LED-Kappen statt abgeschnittener Enden, stärkerer Glow
+- Titel jetzt kleines Label in Versalien, Ist-Temperatur und Status klar getrennt in einer Zeile
+- Größere +/- Buttons mit Rand und Klick-Feedback, Modus-Buttons mit Rand und Hover-Zustand
+- Mehr Innenabstand, dunkles Zifferblatt farblich nachgezogen (#16181c)
+
 ## 4.0.0
 
 - Rückbau von der HACS-Integration auf eine einfache Dashboard-Card ohne Zonen/PWM
